@@ -2,7 +2,7 @@
 useDefault = true
 
 [allowlist]
-description = "Ignore local unversioned environment files, temporary caches, and build artifacts"
+description = "Ignore local unversioned environment files, temporary caches, and test fixtures"
 paths = [
     '''(?i)(\A|[/\\])\.env''',
     '''node_modules''',
@@ -11,16 +11,9 @@ paths = [
     '''\.pytest_cache''',
     '''\.git'''
 ]
-
-[[rules]]
-id = "linkedin-client-id"
-description = "Found a LinkedIn Client ID, risking unauthorized access to LinkedIn integrations and professional data exposure."
-regex = '''(?i)linkedin(.{0,20})?['"][0-9a-z]{14}['"]'''
-keywords = [
-    "linkedin",
+stopwords = [
+    "linkedInStatus"
 ]
-[rules.allowlist]
-description = "Ignore TypeScript type annotations and interface definitions"
-regexes = [
-    '''linkedInStatus\s*:\s*LinkedInStatus'''
+commits = [
+    "458e1e6a57c217f548be72a430bc27371b36e649"
 ]

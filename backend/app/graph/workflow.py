@@ -122,6 +122,10 @@ class PostGenerationWorkflow:
         latest_feedback = state.latest_review.get("feedback") if state.latest_review else None
         
         res = await self.generator.run({
+            "topic": state.topic,
+            "target_audience": state.target_audience,
+            "tone": state.tone,
+            "content_objective": state.content_objective,
             "plan": state.plan,
             "research": state.research,
             "feedback": latest_feedback,

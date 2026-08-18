@@ -18,13 +18,21 @@ class GeneratorAgent(BaseAgent):
         super().__init__(llm, "Generator")
 
     async def run(self, input_data: Dict[str, Any]) -> AgentExecutionResult:
+        topic = input_data.get("topic", "")
+        audience = input_data.get("target_audience", "")
+        tone = input_data.get("tone", "")
+        objective = input_data.get("content_objective", "")
         plan = input_data.get("plan", {})
         research = input_data.get("research", {})
         feedback = input_data.get("feedback")
         iteration = input_data.get("iteration", 1)
         current_post = input_data.get("current_post")
 
-        user_prompt = f"""Plan: {plan}
+        user_prompt = f"""Topic: {topic}
+Target Audience: {audience}
+Desired Tone: {tone}
+Content Objective: {objective}
+Plan: {plan}
 Research Findings: {research}
 Iteration: {iteration}
 """

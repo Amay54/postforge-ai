@@ -120,7 +120,7 @@ async def get_connection_status(
             provider="mock",
             mode="simulation",
             connected=False,
-            publishing_available=True, # available in simulation mode
+            publishing_available=True,
             profile=LinkedInProfileData(
                 name="Amay Yadav (Simulation)",
                 member_id="simulation_member",
@@ -207,8 +207,21 @@ async def publish_to_linkedin(
         
     provider = get_linkedin_provider()
     post_text = req.custom_content or session.final_post_content
-    if not post_text:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No post content available to publish.")
+    
+    # Validation: Ensure content is strictly plain text
+    if not isinstance(post_text, str) or not post_text.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Post content must be plain text."
+        )
+        
+    if post_text.startswith("data:image/") or ";base64," in post_text[:100]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Post content must be plain text. Image and media attachments are not supported in text-only publishing mode."
+        )
+        
+    logger.info(f"[Publish DEBUG] content_type=text content_length={len(post_text)} has_image=false has_media=false provider={settings.LINKEDIN_PROVIDER}")
         
     # Guardrail 3: Official mode checks
     if settings.LINKEDIN_PROVIDER.lower() == "official":

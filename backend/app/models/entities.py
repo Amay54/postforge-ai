@@ -42,8 +42,10 @@ class LinkedInConnection(Base):
     token_expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     scopes: Mapped[Optional[str]] = mapped_column(String(255), default="openid profile email w_member_social")
     provider: Mapped[str] = mapped_column(String(50), default="mock") # "mock" or "official"
+    is_mock: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     connected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)
 
     user: Mapped["User"] = relationship("User", back_populates="linkedin_connections")

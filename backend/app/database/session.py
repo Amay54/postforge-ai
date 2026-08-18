@@ -26,24 +26,36 @@ async def init_db():
             # Check publishing_history columns
             try:
                 res = await conn.execute(text("PRAGMA table_info(publishing_history)"))
-                columns = [row[1] for row in res.fetchall()]
-                if columns and "provider" not in columns:
-                    await conn.execute(text("ALTER TABLE publishing_history ADD COLUMN provider VARCHAR(50) DEFAULT 'mock'"))
+                cols = [row[1] for row in res.fetchall()]
+                if cols:
+                    if "provider" not in cols:
+                        await conn.execute(text("ALTER TABLE publishing_history ADD COLUMN provider VARCHAR(50) DEFAULT 'mock'"))
+                    if "is_mock" not in cols:
+                        await conn.execute(text("ALTER TABLE publishing_history ADD COLUMN is_mock BOOLEAN DEFAULT 1"))
             except Exception:
                 pass
                 
             # Check linkedin_connections columns
             try:
                 res = await conn.execute(text("PRAGMA table_info(linkedin_connections)"))
-                columns = [row[1] for row in res.fetchall()]
-                if columns and "linkedin_member_urn" not in columns:
-                    await conn.execute(text("ALTER TABLE linkedin_connections ADD COLUMN linkedin_member_urn VARCHAR(191)"))
-                if columns and "linkedin_member_id" not in columns:
-                    await conn.execute(text("ALTER TABLE linkedin_connections ADD COLUMN linkedin_member_id VARCHAR(191)"))
-                if columns and "scopes" not in columns:
-                    await conn.execute(text("ALTER TABLE linkedin_connections ADD COLUMN scopes VARCHAR(255) DEFAULT 'openid profile email w_member_social'"))
-                if columns and "provider" not in columns:
-                    await conn.execute(text("ALTER TABLE linkedin_connections ADD COLUMN provider VARCHAR(50) DEFAULT 'mock'"))
+                cols = [row[1] for row in res.fetchall()]
+                if cols:
+                    if "profile_name" not in cols:
+                        await conn.execute(text("ALTER TABLE linkedin_connections ADD COLUMN profile_name VARCHAR(150)"))
+                    if "profile_url" not in cols:
+                        await conn.execute(text("ALTER TABLE linkedin_connections ADD COLUMN profile_url VARCHAR(255)"))
+                    if "linkedin_member_urn" not in cols:
+                        await conn.execute(text("ALTER TABLE linkedin_connections ADD COLUMN linkedin_member_urn VARCHAR(191)"))
+                    if "linkedin_member_id" not in cols:
+                        await conn.execute(text("ALTER TABLE linkedin_connections ADD COLUMN linkedin_member_id VARCHAR(191)"))
+                    if "scopes" not in cols:
+                        await conn.execute(text("ALTER TABLE linkedin_connections ADD COLUMN scopes VARCHAR(255) DEFAULT 'openid profile email w_member_social'"))
+                    if "provider" not in cols:
+                        await conn.execute(text("ALTER TABLE linkedin_connections ADD COLUMN provider VARCHAR(50) DEFAULT 'mock'"))
+                    if "connected_at" not in cols:
+                        await conn.execute(text("ALTER TABLE linkedin_connections ADD COLUMN connected_at DATETIME"))
+                    if "updated_at" not in cols:
+                        await conn.execute(text("ALTER TABLE linkedin_connections ADD COLUMN updated_at DATETIME"))
             except Exception:
                 pass
 

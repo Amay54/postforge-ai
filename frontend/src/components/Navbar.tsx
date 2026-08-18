@@ -13,11 +13,11 @@ import {
 import { LinkedInStatus } from '../types';
 
 interface NavbarProps {
-  linkedInStatus: LinkedInStatus | null;
+  accountStatus: LinkedInStatus | null;
   onConnectClick: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ linkedInStatus, onConnectClick }) => {
+export const Navbar: React.FC<NavbarProps> = ({ accountStatus, onConnectClick }) => {
   const location = useLocation();
 
   const navItems = [
@@ -28,9 +28,9 @@ export const Navbar: React.FC<NavbarProps> = ({ linkedInStatus, onConnectClick }
     { label: 'Settings', path: '/settings', icon: SettingsIcon },
   ];
 
-  const isMock = !linkedInStatus || linkedInStatus.provider === 'mock';
-  const isLiveConnected = linkedInStatus?.provider === 'official' && linkedInStatus.connected;
-  const profileName = linkedInStatus?.profile?.name || 'Member';
+  const isMock = !accountStatus || accountStatus.provider === 'mock';
+  const isLiveConnected = accountStatus?.provider === 'official' && accountStatus.connected;
+  const profileName = accountStatus?.profile?.name || 'Member';
 
   return (
     <header className="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800">

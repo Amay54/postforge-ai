@@ -2,7 +2,7 @@
 useDefault = true
 
 [allowlist]
-description = "Ignore local unversioned environment files, temporary caches, and test fixtures"
+description = "Ignore local unversioned environment files, temporary caches, and build artifacts"
 paths = [
     '''(?i)(\A|[/\\])\.env''',
     '''node_modules''',
@@ -12,7 +12,13 @@ paths = [
     '''\.git'''
 ]
 stopwords = [
-    "linkedInStatus"
+    "linkedInStatus",
+    "LinkedInStatus",
+    "accountStatus"
+]
+regexes = [
+    '''linkedInStatus\s*:\s*LinkedInStatus''',
+    '''accountStatus\s*:\s*LinkedInStatus'''
 ]
 commits = [
     "458e1e6a57c217f548be72a430bc27371b36e649"

@@ -29,7 +29,7 @@ export const PostDetail: React.FC = () => {
   const navigate = useNavigate();
 
   const [session, setSession] = useState<ContentSessionDetail | null>(null);
-  const [linkedInStatus, setLinkedInStatus] = useState<LinkedInStatus | null>(null);
+  const [accountStatus, setAccountStatus] = useState<LinkedInStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'preview' | 'reviews' | 'diff'>('preview');
 
@@ -50,7 +50,7 @@ export const PostDetail: React.FC = () => {
           api.getLinkedInStatus(),
         ]);
         setSession(sessData);
-        setLinkedInStatus(statusData);
+        setAccountStatus(statusData);
       } catch (err) {
         console.error(err);
       } finally {
@@ -125,8 +125,8 @@ export const PostDetail: React.FC = () => {
   const latestReview = session.reviews[session.reviews.length - 1];
   const latestRevision = session.revisions[session.revisions.length - 1];
   const displayContent = session.final_post_content || latestRevision?.content || '';
-  const isMock = !linkedInStatus || linkedInStatus.provider === 'mock';
-  const targetProfileName = linkedInStatus?.profile?.name || 'Amay Yadav';
+  const isMock = !accountStatus || accountStatus.provider === 'mock';
+  const targetProfileName = accountStatus?.profile?.name || 'Amay Yadav';
 
   return (
     <div className="space-y-6">
@@ -301,7 +301,7 @@ export const PostDetail: React.FC = () => {
             <div className="py-2">
               <PostPreview
                 content={displayContent}
-                authorProfile={linkedInStatus?.profile}
+                authorProfile={accountStatus?.profile}
                 isMock={isMock}
               />
             </div>
@@ -406,11 +406,11 @@ export const PostDetail: React.FC = () => {
       {/* LinkedIn Connect Modal */}
       <LinkedInConnectModal
         isOpen={connectModalOpen}
-        linkedInStatus={linkedInStatus}
+        accountStatus={accountStatus}
         onClose={() => setConnectModalOpen(false)}
         onStatusUpdated={async () => {
           const statusData = await api.getLinkedInStatus();
-          setLinkedInStatus(statusData);
+          setAccountStatus(statusData);
         }}
       />
     </div>

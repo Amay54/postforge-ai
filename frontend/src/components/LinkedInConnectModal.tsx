@@ -5,14 +5,14 @@ import { LinkedInStatus } from '../types';
 
 interface LinkedInConnectModalProps {
   isOpen: boolean;
-  linkedInStatus: LinkedInStatus | null;
+  accountStatus: LinkedInStatus | null;
   onClose: () => void;
   onStatusUpdated: () => void;
 }
 
 export const LinkedInConnectModal: React.FC<LinkedInConnectModalProps> = ({
   isOpen,
-  linkedInStatus,
+  accountStatus,
   onClose,
   onStatusUpdated,
 }) => {
@@ -21,8 +21,8 @@ export const LinkedInConnectModal: React.FC<LinkedInConnectModalProps> = ({
 
   if (!isOpen) return null;
 
-  const isMock = !linkedInStatus || linkedInStatus.provider === 'mock';
-  const isLiveConnected = linkedInStatus?.provider === 'official' && linkedInStatus.connected;
+  const isMock = !accountStatus || accountStatus.provider === 'mock';
+  const isLiveConnected = accountStatus?.provider === 'official' && accountStatus.connected;
 
   const handleLaunchOAuth = async () => {
     setLoading(true);
@@ -90,7 +90,7 @@ export const LinkedInConnectModal: React.FC<LinkedInConnectModalProps> = ({
               <span className={`px-2 py-0.5 rounded text-[11px] font-bold font-mono uppercase ${
                 isLiveConnected ? 'text-emerald-400 bg-emerald-500/20' : isMock ? 'text-amber-400 bg-amber-500/20' : 'text-slate-400'
               }`}>
-                {linkedInStatus?.mode || 'Simulation'}
+                {accountStatus?.mode || 'Simulation'}
               </span>
             </div>
 
@@ -108,7 +108,7 @@ export const LinkedInConnectModal: React.FC<LinkedInConnectModalProps> = ({
               <div className="mt-2 text-xs text-emerald-200 leading-relaxed">
                 <p className="font-semibold">?? Live LinkedIn Connected</p>
                 <p className="text-[11px] text-emerald-300/90 mt-0.5">
-                  Member: <strong>{linkedInStatus?.profile?.name}</strong> (URN: <code className="font-mono text-[10px]">{linkedInStatus?.profile?.member_urn}</code>)
+                  Member: <strong>{accountStatus?.profile?.name}</strong> (URN: <code className="font-mono text-[10px]">{accountStatus?.profile?.member_urn}</code>)
                 </p>
                 <p className="text-[11px] text-slate-400 mt-1">
                   Posts approved by you will be published directly to your live LinkedIn feed.

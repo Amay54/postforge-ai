@@ -12,13 +12,13 @@ import { api } from './services/api';
 import { LinkedInStatus } from './types';
 
 export const App: React.FC = () => {
-  const [linkedInStatus, setLinkedInStatus] = useState<LinkedInStatus | null>(null);
+  const [accountStatus, setAccountStatus] = useState<LinkedInStatus | null>(null);
   const [connectModalOpen, setConnectModalOpen] = useState(false);
 
   const loadStatus = async () => {
     try {
       const status = await api.getLinkedInStatus();
-      setLinkedInStatus(status);
+      setAccountStatus(status);
     } catch (err) {
       console.error(err);
     }
@@ -32,7 +32,7 @@ export const App: React.FC = () => {
     <BrowserRouter>
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-blue-500 selection:text-white">
         <Navbar
-          linkedInStatus={linkedInStatus}
+          accountStatus={accountStatus}
           onConnectClick={() => setConnectModalOpen(true)}
         />
 
@@ -49,7 +49,7 @@ export const App: React.FC = () => {
 
         <LinkedInConnectModal
           isOpen={connectModalOpen}
-          linkedInStatus={linkedInStatus}
+          accountStatus={accountStatus}
           onClose={() => setConnectModalOpen(false)}
           onStatusUpdated={loadStatus}
         />

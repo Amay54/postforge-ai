@@ -1,0 +1,15 @@
+[extend]
+useDefault = true
+
+[[rules]]
+id = "linkedin-client-id"
+description = "Found a LinkedIn Client ID, risking unauthorized access to LinkedIn integrations and professional data exposure."
+regex = '''(?i)linkedin(.{0,20})?['"][0-9a-z]{14}['"]'''
+keywords = [
+    "linkedin",
+]
+[rules.allowlist]
+description = "Ignore TypeScript type annotations and interface definitions"
+regexes = [
+    '''linkedInStatus\s*:\s*LinkedInStatus'''
+]

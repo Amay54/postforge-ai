@@ -1,5 +1,6 @@
 import os
 import subprocess
+import tempfile
 import pytest
 from app.services.security import (
     get_password_hash,
@@ -104,3 +105,37 @@ def test_frontend_has_no_hardcoded_secrets():
                 content = open(path, "r", encoding="utf-8").read()
                 for pattern in sensitive_patterns:
                     assert pattern not in content, f"Sensitive pattern {pattern} found in {path}"
+
+def test_gitleaks_rule_discrimination():
+    """Verify that GitLeaks configuration permits TypeScript type annotations while actively blocking actual credential patterns."""
+    gitleaks_bin = "./gitleaks.exe" if os.path.exists("./gitleaks.exe") else "../gitleaks.exe"
+    gitleaks_cfg = ".gitleaks.toml" if os.path.exists(".gitleaks.toml") else "../.gitleaks.toml"
+    
+    if not os.path.exists(gitleaks_bin) or not os.path.exists(gitleaks_cfg):
+        pytest.skip("gitleaks binary or config not present in local test directory")
+
+    # 1. False positive fixture (TypeScript prop)
+    with tempfile.NamedTemporaryFile("w", suffix=".tsx", delete=False) as tf:
+        tf.write("interface Props { linkedInStatus: LinkedInStatus | null; }\n")
+        tf_name = tf.name
+
+    try:
+        cmd_fp = [gitleaks_bin, "detect", "--no-git", "--source", tf_name, "--config", gitleaks_cfg]
+        res_fp = subprocess.run(cmd_fp, capture_output=True, text=True)
+        assert res_fp.returncode == 0, "GitLeaks falsely flagged TypeScript interface prop as a leak!"
+    finally:
+        if os.path.exists(tf_name):
+            os.remove(tf_name)
+
+    # 2. True positive fixture (actual Client ID format)
+    with tempfile.NamedTemporaryFile("w", suffix=".env", delete=False) as tf2:
+        tf2.write('linkedin_client_id = "86xu4prhkumlpk"\n')
+        tf2_name = tf2.name
+
+    try:
+        cmd_tp = [gitleaks_bin, "detect", "--no-git", "--source", tf2_name, "--config", gitleaks_cfg]
+        res_tp = subprocess.run(cmd_tp, capture_output=True, text=True)
+        assert res_tp.returncode != 0, "GitLeaks missed detecting an actual LinkedIn Client ID!"
+    finally:
+        if os.path.exists(tf2_name):
+            os.remove(tf2_name)

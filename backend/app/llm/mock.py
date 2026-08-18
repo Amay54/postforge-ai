@@ -14,6 +14,35 @@ from app.schemas.agent_schemas import (
 
 T = TypeVar("T", bound=BaseModel)
 
+DIMENSION_WEIGHTS = {
+    "hook_impact": 0.15,
+    "clarity": 0.12,
+    "professional_depth": 0.12,
+    "engagement_potential": 0.12,
+    "originality": 0.10,
+    "actionability": 0.10,
+    "structure": 0.08,
+    "storytelling": 0.08,
+    "authenticity": 0.07,
+    "emotional_resonance": 0.06,
+}
+
+def calculate_weighted_overall_score(scores: ReviewScores) -> int:
+    """Mathematically computes the 10-dimensional weighted quality score."""
+    total = (
+        scores.hook_impact * DIMENSION_WEIGHTS["hook_impact"] +
+        scores.clarity * DIMENSION_WEIGHTS["clarity"] +
+        scores.professional_depth * DIMENSION_WEIGHTS["professional_depth"] +
+        scores.engagement_potential * DIMENSION_WEIGHTS["engagement_potential"] +
+        scores.originality * DIMENSION_WEIGHTS["originality"] +
+        scores.actionability * DIMENSION_WEIGHTS["actionability"] +
+        scores.structure * DIMENSION_WEIGHTS["structure"] +
+        scores.storytelling * DIMENSION_WEIGHTS["storytelling"] +
+        scores.authenticity * DIMENSION_WEIGHTS["authenticity"] +
+        scores.emotional_resonance * DIMENSION_WEIGHTS["emotional_resonance"]
+    )
+    return max(0, min(100, round(total)))
+
 PROMPT_LEAKAGE_PATTERNS = [
     r"create\s+(?:a\s+)?linkedin\s+post",
     r"write\s+(?:a\s+)?linkedin\s+post",
@@ -65,8 +94,74 @@ def _extract_topic_and_keywords(prompt_text: str) -> dict:
     cleaned_topic = clean_subject_line(prompt_text)
     subject_lower = cleaned_topic.lower()
     
-    # 1. AI Prototype to Production Failures
-    if ("prototype" in subject_lower and "production" in subject_lower) or ("fail" in subject_lower and "ai" in subject_lower):
+    # 1. Agentic AI Systems / PostForge AI Pipeline
+    if any(k in subject_lower for k in ["agent", "agentic", "postforge", "multi-agent", "workflow", "planner", "reviewer", "approval", "human-in-the-loop"]):
+        return {
+            "topic": "Building an Autonomous Agentic AI System for LinkedIn Publishing with Human-in-the-Loop Approval",
+            "hook": "Most AI content tools treat generation as a one-shot prompt. Autonomous agentic systems require stateful verification.",
+            "hook_iter2": "Most AI automation fails in production because it relies on raw, unverified one-shot generations. Here is how we engineered an autonomous, multi-agent pipeline with rigorous quality guardrails:",
+            "pains": [
+                "Single-prompt LLMs producing generic, unverified hallucinations",
+                "Lack of automated multi-dimensional rubric scoring before publishing",
+                "Uncontrolled API side-effects without Human-in-the-Loop governance"
+            ],
+            "beats": [
+                "The core engineering shift: from static prompt chains to stateful multi-agent state machines",
+                "The 6-stage architecture: Planner ? Researcher ? Generator ? Reviewer ? Iterative Refinement ? Human-in-the-Loop Approval",
+                "Production governance: 10-dimensional weighted quality evaluation and live LinkedIn REST API publishing",
+                "Thoughtful discussion question on agentic orchestration"
+            ],
+            "body_iter1": """Most AI content tools treat generation as a one-shot prompt. Autonomous agentic systems require stateful verification.
+
+When building PostForge AI, we decoupled monolithic generation into a coordinated multi-agent workflow:
+
+1. Planner Agent: Deconstructs the core user topic into target audience pain points and narrative beats.
+2. Researcher Agent: Retrieves grounding facts and domain benchmarks.
+3. Generator Agent: Synthesizes high-impact drafts optimized for mobile feed readability.
+4. Reviewer Agent: Rigorously scores the draft across 10 editorial dimensions (Hook, Depth, Clarity, Actionability).
+5. Iterative Refinement Loop: Automatically refines the post until it surpasses the 85+ quality threshold.
+6. Human-in-the-Loop Approval: Protects brand safety by requiring explicit human authorization before live LinkedIn dispatch.
+
+The result: High-density, authentic engineering insights without hallucinations or prompt leakage.
+
+How is your engineering team implementing verification guardrails in multi-agent workflows?
+
+#ArtificialIntelligence #MachineLearning #SystemArchitecture #SoftwareEngineering #AgenticAI""",
+            "body_iter2": """Most AI automation fails in production because it relies on raw, unverified one-shot generations. Here is how we engineered an autonomous, multi-agent pipeline with rigorous quality guardrails:
+
+Rather than trusting a single LLM output, PostForge AI runs an iterative LangGraph state machine designed for enterprise reliability:
+
+The 6-Stage Architecture:
+
+1. Planner Agent
+Breaks raw prompts into audience pain points, narrative arcs, and research requirements.
+
+2. Researcher Agent
+Gathers verified domain facts to prevent hallucinated claims.
+
+3. Generator Agent
+Drafts crisp, high-value posts optimized for mobile feeds and substantive takeaways.
+
+4. Reviewer Agent (10-Dimensional Rubric)
+Objectively evaluates Hook Impact (15%), Clarity (12%), Professional Depth (12%), and Actionability (10%).
+
+5. Autonomous Refinement Loop
+If the weighted score is below 85, actionable feedback is fed back into the Generator for automated revision.
+
+6. Human-in-the-Loop Governance
+Final publishing to LinkedIn's official REST API occurs ONLY after explicit user review and approval.
+
+Key takeaway: Autonomous agents are powerful, but reliable evaluation guardrails are what make them production-ready.
+
+How is your engineering team structuring automated quality gates in agentic AI architectures?
+
+#ArtificialIntelligence #MachineLearning #SystemArchitecture #SoftwareEngineering #AgenticAI""",
+            "hashtags": ["#ArtificialIntelligence", "#MachineLearning", "#SystemArchitecture", "#SoftwareEngineering", "#AgenticAI"],
+            "cta": "How is your engineering team structuring automated quality gates in agentic AI architectures?"
+        }
+
+    # 2. AI Prototype to Production Failures
+    elif ("prototype" in subject_lower and "production" in subject_lower) or ("fail" in subject_lower and "ai" in subject_lower):
         return {
             "topic": "Why Enterprise AI Projects Fail Moving from Prototype to Production",
             "hook": "80% of enterprise AI prototypes never survive the transition to production.",
@@ -127,7 +222,7 @@ What has been your team's single most effective practice for keeping AI reliable
             "cta": "What has been your team's single most effective practice for keeping AI reliable in production?"
         }
 
-    # 2. Python / Recursion
+    # 3. Python / Recursion
     elif "recursion" in subject_lower or ("python" in subject_lower and "rag" not in subject_lower and "ai" not in subject_lower):
         return {
             "topic": "Mastering Recursion in Python for Beginners",
@@ -184,7 +279,7 @@ Which concept was harder for you when starting out: recursion or pointer memory?
             "cta": "Which concept was harder for you when starting out: recursion or pointer memory?"
         }
 
-    # 3. RAG / Retrieval
+    # 4. RAG / Retrieval
     elif "rag" in subject_lower or "retrieval" in subject_lower or "vector" in subject_lower:
         return {
             "topic": "Deploying RAG Systems in Production",
@@ -244,9 +339,8 @@ What has been your team's biggest operational breakthrough in scaling RAG system
             "cta": "What has been your team's biggest operational breakthrough in scaling RAG systems?"
         }
 
-    # 4. Generic Clean Topic
+    # 5. Generic Clean Topic
     else:
-        # Extract meaningful domain title
         words = [w.capitalize() for w in re.findall(r'\b[A-Za-z]{3,}\b', cleaned_topic)[:4]]
         topic_title = " ".join(words) if words else "Engineering Excellence"
         
@@ -316,8 +410,9 @@ class MockLLMService(BaseLLMService):
         t0 = time.time()
         topic_info = _extract_topic_and_keywords(prompt)
         
-        is_iter_1 = "iteration: 1" in prompt.lower() or "iteration 1" in prompt.lower() or "iteration_number: 1" in prompt.lower()
-        has_feedback = "reviewer feedback" in prompt.lower() or "previous draft" in prompt.lower()
+        is_iter_1 = bool(re.search(r'iteration[\s_:]*1(?!\d)', prompt.lower()))
+        is_iter_2_plus = bool(re.search(r'iteration[\s_:]*[2-9]', prompt.lower()))
+        has_feedback = "reviewer feedback" in prompt.lower() or "previous draft" in prompt.lower() or is_iter_2_plus
         
         # 1. Planner Output
         if response_schema == PlannerOutput or "content strategy plan" in prompt.lower():
@@ -359,11 +454,27 @@ class MockLLMService(BaseLLMService):
             
         # 3. Reviewer Output
         elif response_schema == ReviewerOutput or "critique strictly" in prompt.lower() or "candidate linkedin post to evaluate" in prompt.lower():
-            # Check for prompt leakage in the evaluated post
-            leaks = check_prompt_leakage(prompt)
+            # Extract candidate post text from prompt
+            post_match = re.search(r'Candidate LinkedIn Post to Evaluate:\s*(?:"""|\'\'\')?\s*(.*?)\s*(?:"""|\'\'\'|Critique strictly|$)', prompt, re.DOTALL)
+            candidate_text = post_match.group(1).strip() if post_match else prompt
+            
+            # Check for genuine prompt leakage in the candidate post itself
+            leaks = check_prompt_leakage(candidate_text)
+            
             if leaks:
-                overall = 55
-                approved = False
+                scores = ReviewScores(
+                    hook_impact=45,
+                    clarity=55,
+                    professional_depth=50,
+                    engagement_potential=48,
+                    originality=45,
+                    actionability=50,
+                    structure=55,
+                    storytelling=45,
+                    authenticity=40,
+                    emotional_resonance=45
+                )
+                math_overall = calculate_weighted_overall_score(scores)
                 issues = [f"Critical Prompt Leakage detected: '{', '.join(leaks)}'."]
                 feedback = "Draft contains raw prompt leakage meta-instructions. Strip meta-phrases and write in an authentic executive first-person voice."
                 instructions = [
@@ -371,66 +482,54 @@ class MockLLMService(BaseLLMService):
                     "Synthesize the narrative naturally around the core topic.",
                     "Strengthen the opening hook to be direct and insight-driven."
                 ]
-                scores = ReviewScores(
-                    hook_impact=50,
-                    storytelling=55,
-                    professional_depth=60,
-                    clarity=55,
-                    engagement_potential=50,
-                    originality=50,
-                    structure=60,
-                    actionability=55,
-                    emotional_resonance=50,
-                    authenticity=50
-                )
             elif is_iter_1 or not has_feedback:
-                overall = 78
-                approved = False
-                issues = [
-                    "Opening hook could provide sharper contrast and punchier tension.",
-                    "Middle section needs more explicit bulleted architecture solutions."
-                ]
-                feedback = f"Solid foundation for {topic_info['topic']}, but the opening hook needs stronger tension and the core solutions should be formatted with clear visual bullets."
-                instructions = [
-                    "Open with a bold contrast statement about failure modes vs best practices.",
-                    "Format the 3 core takeaways with distinct bullet points for mobile readability.",
-                    "Strengthen the final question to provoke high-intent practitioner discussion."
-                ]
+                # Iteration 1 draft: Solid baseline (78) needing hook tension and formatting polish
                 scores = ReviewScores(
                     hook_impact=76,
-                    storytelling=80,
-                    professional_depth=81,
-                    clarity=84,
-                    engagement_potential=77,
-                    originality=78,
-                    structure=82,
+                    clarity=82,
+                    professional_depth=80,
+                    engagement_potential=78,
+                    originality=77,
                     actionability=79,
-                    emotional_resonance=74,
-                    authenticity=79
+                    structure=78,
+                    storytelling=77,
+                    authenticity=80,
+                    emotional_resonance=75
                 )
+                math_overall = calculate_weighted_overall_score(scores)
+                issues = [
+                    "Opening hook could provide sharper contrast and tension before the 'see more' cutoff.",
+                    "Architecture section would benefit from numbered distinct stages for mobile scanning."
+                ]
+                feedback = f"Strong conceptual foundation for {topic_info['topic']}. To exceed 85+, sharpen the opening hook's tension and structure the architectural stages with clear visual spacing."
+                instructions = [
+                    "Open with a high-contrast statement about why naive implementations fail in production.",
+                    "Format the key architectural stages into distinct numbered blocks.",
+                    "Ensure the ending question invites high-intent practitioner discussions."
+                ]
             else:
-                overall = 91
-                approved = True
-                issues = []
-                feedback = f"Exceptional revised post for {topic_info['topic']}. The hook is engaging, technical solutions are crisp and actionable, and formatting is optimized for LinkedIn feeds."
-                instructions = []
+                # Iteration 2+ revised draft: Exceptional polished post (91-92)
                 scores = ReviewScores(
-                    hook_impact=92,
-                    storytelling=90,
-                    professional_depth=93,
-                    clarity=94,
-                    engagement_potential=91,
+                    hook_impact=93,
+                    clarity=92,
+                    professional_depth=92,
+                    engagement_potential=90,
                     originality=89,
-                    structure=95,
-                    actionability=92,
-                    emotional_resonance=86,
-                    authenticity=91
+                    actionability=91,
+                    structure=94,
+                    storytelling=90,
+                    authenticity=91,
+                    emotional_resonance=86
                 )
+                math_overall = calculate_weighted_overall_score(scores)
+                issues = []
+                feedback = f"Exceptional revised post for {topic_info['topic']}. The opening hook is compelling, the architectural stages are crisp and actionable, and formatting is optimized for mobile feeds."
+                instructions = []
                 
             content = ReviewerOutput(
                 dimension_scores=scores,
-                overall_score=overall,
-                approved=approved,
+                overall_score=math_overall,
+                approved=(math_overall >= 85),
                 issues=issues,
                 feedback=feedback,
                 improvement_instructions=instructions

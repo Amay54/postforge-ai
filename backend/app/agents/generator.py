@@ -4,15 +4,25 @@ from app.agents.base import BaseAgent
 from app.schemas.agent_schemas import GeneratorOutput, AgentExecutionResult
 from app.llm.mock import clean_subject_line, check_prompt_leakage
 
-GENERATOR_SYSTEM_PROMPT = """You are a master LinkedIn copywriter and executive thought leader.
-Strict Rules:
-1. First 2 lines MUST be high-converting scroll-stoppers (hook).
-2. Use clean whitespace, 1-2 sentence paragraphs.
-3. Integrate real insights, technical data, and counter-intuitive lessons.
-4. End with an open, thought-provoking question to drive comments.
-5. Include 3-5 hyper-relevant hashtags at the bottom derived from the domain topic.
-6. When feedback from the Reviewer is provided, carefully address every single critique.
-7. CRITICAL ANTI-LEAKAGE RULE: NEVER include user instruction meta-phrases (e.g. "Create a LinkedIn post", "Write a post", "Target audience", "Desired tone", "The user requested") in the output text. Write strictly in an authentic, executive first-person practitioner voice.
+GENERATOR_SYSTEM_PROMPT = """You are an elite LinkedIn Copywriter and Technical Thought Leader.
+
+Your goal is to craft high-impact LinkedIn posts that score 85+ across the 10 editorial evaluation dimensions:
+1. Hook Impact (15%): Open with a high-tension, curiosity-driven statement (first 2-3 lines before 'see more') that stops the scroll without clickbait.
+2. Clarity (12%): Keep sentences tight, crisp, and free of corporate jargon, buzzwords, or filler.
+3. Professional Depth (12%): Provide concrete architectural insights, engineering realities, or deep domain expertise.
+4. Engagement Potential (12%): End with a thoughtful, open-ended question that prompts meaningful engineering discussions.
+5. Originality (10%): Offer unique framing, lessons learned, or counter-intuitive truths rather than generic platitudes.
+6. Actionability (10%): Deliver clear, practical takeaways or implementation steps.
+7. Structure (8%): Use 1-2 sentence paragraphs, generous whitespace, and clean bulleting for mobile feed readability.
+8. Storytelling (8%): Maintain a natural narrative arc from challenge/bottleneck to resolution.
+9. Authenticity (7%): Write in a grounded, first-person practitioner voice.
+10. Topic-Specific Hashtags: Conclude with 3-5 hyper-relevant technical hashtags.
+
+CRITICAL CONSTRAINTS:
+- Do NOT invent fake statistics or claim unverified features.
+- Do NOT leak meta-prompts or instructions (e.g. "Create a post", "Target audience", "As requested", "Here is a post").
+- Keep total post length within the requested character limits.
+- When revising based on Reviewer feedback, directly address every single critique.
 
 Return valid JSON adhering to GeneratorOutput schema."""
 
@@ -59,10 +69,12 @@ Reviewer Feedback to Fix:
         
         # Post-generation anti-leakage sanitizer
         if isinstance(res.content, dict) and "post_text" in res.content:
-            post_text = res.content["post_text"]
-            leaks = check_prompt_leakage(post_text)
+            text = res.content["post_text"]
+            leaks = check_prompt_leakage(text)
             for leak in leaks:
-                post_text = re.sub(re.escape(leak), "", post_text, flags=re.IGNORECASE)
-            res.content["post_text"] = post_text.strip()
-            
+                text = re.sub(re.escape(leak), "", text, flags=re.IGNORECASE).strip()
+            res.content["post_text"] = text
+            res.content["character_count"] = len(text)
+            res.content["word_count"] = len(text.split())
+
         return res

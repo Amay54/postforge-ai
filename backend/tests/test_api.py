@@ -69,51 +69,53 @@ async def test_publish_guardrail_unapproved(async_client, auth_headers, db_sessi
 
 @pytest.mark.asyncio
 async def test_publish_mock_mode_success(async_client, auth_headers, db_session, test_user):
-    session = ContentSession(
-        user_id=test_user.id,
-        topic="Approved Post",
-        status="approved",
-        human_approved=True,
-        final_post_content="Content with explicit human approval ready for LinkedIn."
-    )
-    db_session.add(session)
-    await db_session.commit()
-    await db_session.refresh(session)
+    with patch.object(settings, "LINKEDIN_PROVIDER", "mock"):
+        session = ContentSession(
+            user_id=test_user.id,
+            topic="Approved Post",
+            status="approved",
+            human_approved=True,
+            final_post_content="Content with explicit human approval ready for LinkedIn."
+        )
+        db_session.add(session)
+        await db_session.commit()
+        await db_session.refresh(session)
 
-    pub_payload = {
-        "session_id": session.id,
-        "confirmation": True
-    }
-    resp = await async_client.post("/api/linkedin/publish", json=pub_payload, headers=auth_headers)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["success"] is True
-    assert data["status"] == "PUBLISHED"
-    assert data["is_mock"] is True
-    assert data["provider"] == "mock"
+        pub_payload = {
+            "session_id": session.id,
+            "confirmation": True
+        }
+        resp = await async_client.post("/api/linkedin/publish", json=pub_payload, headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert data["status"] == "PUBLISHED"
+        assert data["is_mock"] is True
+        assert data["provider"] == "mock"
 
 @pytest.mark.asyncio
 async def test_text_only_post_publish(async_client, auth_headers, db_session, test_user):
-    session = ContentSession(
-        user_id=test_user.id,
-        topic="Text Only Post Testing",
-        status="approved",
-        human_approved=True,
-        final_post_content="Pure textual commentary about software craftsmanship on LinkedIn."
-    )
-    db_session.add(session)
-    await db_session.commit()
-    await db_session.refresh(session)
+    with patch.object(settings, "LINKEDIN_PROVIDER", "mock"):
+        session = ContentSession(
+            user_id=test_user.id,
+            topic="Text Only Post Testing",
+            status="approved",
+            human_approved=True,
+            final_post_content="Pure textual commentary about software craftsmanship on LinkedIn."
+        )
+        db_session.add(session)
+        await db_session.commit()
+        await db_session.refresh(session)
 
-    pub_payload = {
-        "session_id": session.id,
-        "confirmation": True
-    }
-    resp = await async_client.post("/api/linkedin/publish", json=pub_payload, headers=auth_headers)
-    assert resp.status_code == 200
-    res_data = resp.json()
-    assert res_data["success"] is True
-    assert "urn:li:share:mock" in res_data["linkedin_post_id"]
+        pub_payload = {
+            "session_id": session.id,
+            "confirmation": True
+        }
+        resp = await async_client.post("/api/linkedin/publish", json=pub_payload, headers=auth_headers)
+        assert resp.status_code == 200
+        res_data = resp.json()
+        assert res_data["success"] is True
+        assert "urn:li:share:mock" in res_data["linkedin_post_id"]
 
 @pytest.mark.asyncio
 async def test_text_only_post_rejects_base64_and_images(async_client, auth_headers, db_session, test_user):
@@ -170,7 +172,6 @@ async def test_new_prompt_is_not_replaced_by_previous_prompt(async_client, auth_
 
 @pytest.mark.asyncio
 async def test_no_prompt_leakage(async_client, auth_headers):
-    """Verify that user instructions and meta-phrases are not leaked into the generated post text."""
     prompt = "Create a LinkedIn post explaining why AI projects fail when moving from prototype to production. Target audience: AI engineers. Desired tone: professional."
     payload = {
         "topic": prompt,
@@ -185,7 +186,6 @@ async def test_no_prompt_leakage(async_client, auth_headers):
     data = resp.json()
     final_post = data["final_post_content"]
 
-    # Forbidden prompt leakage phrases
     forbidden_phrases = [
         "create a linkedin post",
         "create linkedin post",
@@ -204,17 +204,17 @@ async def test_no_prompt_leakage(async_client, auth_headers):
     for phrase in forbidden_phrases:
         assert phrase not in final_post.lower(), f"Prompt leakage phrase '{phrase}' found in final post:\n{final_post}"
 
-    # Verify high quality natural hook and domain content
     assert "80%" in final_post or "prototype" in final_post.lower()
     assert "#MLOps" in final_post or "#ArtificialIntelligence" in final_post or "#MachineLearning" in final_post
 
 @pytest.mark.asyncio
 async def test_linkedin_status_mock(async_client, auth_headers):
-    resp = await async_client.get("/api/linkedin/status", headers=auth_headers)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["provider"] == "mock"
-    assert data["mode"] == "simulation"
+    with patch.object(settings, "LINKEDIN_PROVIDER", "mock"):
+        resp = await async_client.get("/api/linkedin/status", headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["provider"] == "mock"
+        assert data["mode"] == "simulation"
 
 @pytest.mark.asyncio
 async def test_publish_official_mode_requires_oauth(async_client, auth_headers, db_session, test_user):

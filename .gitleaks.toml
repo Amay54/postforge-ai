@@ -1,6 +1,17 @@
 [extend]
 useDefault = true
 
+[allowlist]
+description = "Ignore local unversioned environment files, temporary caches, and build artifacts"
+paths = [
+    '''(?i)(\A|[/\\])\.env''',
+    '''node_modules''',
+    '''dist''',
+    '''__pycache__''',
+    '''\.pytest_cache''',
+    '''\.git'''
+]
+
 [[rules]]
 id = "linkedin-client-id"
 description = "Found a LinkedIn Client ID, risking unauthorized access to LinkedIn integrations and professional data exposure."

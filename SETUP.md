@@ -1,33 +1,50 @@
-# PostForge AI Environment Configuration Template
-# Copy this file to .env and fill in your local credentials.
+# PostForge AI ? Setup & Installation Guide
 
-PROJECT_NAME=PostForge AI
+## 1. Prerequisites
+- Python 3.11+
+- Node.js 18+
+- npm or yarn
+
+## 2. Environment Setup
+Copy the template configuration:
+```bash
+cp .env.example .env
+```
+
+Fill in your configuration in `.env`:
+```env
+PROJECT_NAME="PostForge AI"
 ENVIRONMENT=development
 DEBUG=true
 
-# Security Secrets (Provide 32-byte secret and Fernet key in your local .env)
-SECRET_KEY=
-JWT_SECRET_KEY=
-JWT_ALGORITHM=HS256
-TOKEN_ENCRYPTION_KEY=
+SECRET_KEY=your_generated_secret_key
+JWT_SECRET_KEY=your_generated_jwt_secret
+TOKEN_ENCRYPTION_KEY=your_generated_fernet_key
 
-# Database Connection
 DATABASE_URL=sqlite+aiosqlite:///./postforge.db
 
-# LLM Configuration (Google Gemini API)
-GEMINI_API_KEY=
+GEMINI_API_KEY=your_gemini_api_key
 GEMINI_MODEL=gemini-2.5-flash
 MOCK_LLM=true
 MOCK_RESEARCH=true
 
-# LinkedIn OAuth & Publishing Configuration
-# Set LINKEDIN_PROVIDER=mock for offline simulation, or official for live publishing
-LINKEDIN_PROVIDER=mock
-LINKEDIN_CLIENT_ID=
-LINKEDIN_CLIENT_SECRET=
+LINKEDIN_PROVIDER=mock # or official
+LINKEDIN_CLIENT_ID=your_linkedin_client_id
+LINKEDIN_CLIENT_SECRET=your_linkedin_client_secret
 LINKEDIN_REDIRECT_URI=http://localhost:8000/api/linkedin/callback
 LINKEDIN_API_VERSION=202607
+```
 
-# Editorial Quality Defaults
-QUALITY_THRESHOLD_DEFAULT=85
-MAX_ITERATIONS_DEFAULT=5
+## 3. Running the Backend
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+## 4. Running the Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```

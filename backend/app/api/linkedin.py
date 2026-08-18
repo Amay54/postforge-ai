@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -63,8 +63,10 @@ async def oauth_callback(
     
     enc_access = encrypt_token(token_data["access_token"])
     enc_refresh = encrypt_token(token_data["refresh_token"]) if token_data.get("refresh_token") else None
+    expires_in = int(token_data.get("expires_in", 5184000))
+    token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
     
-    # Query existing connection
+    # Query existing connection and replace with fresh token
     stmt = select(LinkedInConnection).where(
         LinkedInConnection.user_id == current_user.id,
         LinkedInConnection.provider == settings.LINKEDIN_PROVIDER
@@ -81,10 +83,11 @@ async def oauth_callback(
             profile_url=f"https://www.linkedin.com/in/{token_data.get('member_id')}" if token_data.get("member_id") else None,
             encrypted_access_token=enc_access,
             encrypted_refresh_token=enc_refresh,
-            token_expires_at=datetime.now(timezone.utc),
+            token_expires_at=token_expires_at,
             scopes=token_data.get("scopes", "openid profile email w_member_social"),
             provider=settings.LINKEDIN_PROVIDER,
-            is_active=True
+            is_active=True,
+            connected_at=datetime.now(timezone.utc)
         )
         db.add(conn)
     else:
@@ -93,15 +96,17 @@ async def oauth_callback(
         conn.profile_name = token_data.get("name")
         conn.encrypted_access_token = enc_access
         conn.encrypted_refresh_token = enc_refresh
+        conn.token_expires_at = token_expires_at
         conn.scopes = token_data.get("scopes", "openid profile email w_member_social")
         conn.provider = settings.LINKEDIN_PROVIDER
         conn.is_active = True
+        conn.connected_at = datetime.now(timezone.utc)
         
     await db.commit()
     return {
         "status": "success",
         "provider": settings.LINKEDIN_PROVIDER,
-        "message": "LinkedIn connected successfully.",
+        "message": "LinkedIn connected successfully with fresh OAuth token.",
         "member_name": token_data.get("name"),
         "member_urn": token_data.get("member_urn")
     }
@@ -138,13 +143,44 @@ async def get_connection_status(
     res = await db.execute(stmt)
     conn = res.scalar_one_or_none()
     
-    if not conn:
+    if not conn or not conn.encrypted_access_token:
         return LinkedInStatusResponse(
             provider="official",
             mode="live",
             connected=False,
             publishing_available=False,
             error="LinkedIn account is not connected. Connect via OAuth in Settings to publish to real LinkedIn."
+        )
+        
+    # Token expiration check
+    if conn.token_expires_at:
+        exp = conn.token_expires_at if conn.token_expires_at.tzinfo else conn.token_expires_at.replace(tzinfo=timezone.utc)
+        if exp < datetime.now(timezone.utc):
+            conn.is_active = False
+            await db.commit()
+            return LinkedInStatusResponse(
+                provider="official",
+                mode="live",
+                connected=False,
+                publishing_available=False,
+                error="LinkedIn authorization has expired or is invalid. Please reconnect LinkedIn."
+            )
+            
+    # Scope check
+    if "w_member_social" not in (conn.scopes or ""):
+        return LinkedInStatusResponse(
+            provider="official",
+            mode="live",
+            connected=True,
+            publishing_available=False,
+            profile=LinkedInProfileData(
+                name=conn.profile_name or "Authenticated Member",
+                member_id=conn.linkedin_member_id,
+                member_urn=conn.linkedin_member_urn,
+                profile_url=conn.profile_url
+            ),
+            expires_at=conn.token_expires_at,
+            error="LinkedIn application is missing required 'w_member_social' posting permission. Please reconnect and grant permission."
         )
         
     return LinkedInStatusResponse(
@@ -173,7 +209,7 @@ async def disconnect_linkedin(
     for conn in connections:
         conn.is_active = False
     await db.commit()
-    return {"status": "success", "message": "LinkedIn connection disconnected successfully."}
+    return {"status": "success", "message": "LinkedIn connection disconnected successfully. Publishing and session history preserved."}
 
 
 @router.post("/publish", response_model=LinkedInPublishResponse)
@@ -221,8 +257,6 @@ async def publish_to_linkedin(
             detail="Post content must be plain text. Image and media attachments are not supported in text-only publishing mode."
         )
         
-    logger.info(f"[Publish DEBUG] content_type=text content_length={len(post_text)} has_image=false has_media=false provider={settings.LINKEDIN_PROVIDER}")
-        
     # Guardrail 3: Official mode checks
     if settings.LINKEDIN_PROVIDER.lower() == "official":
         stmt_conn = select(LinkedInConnection).where(
@@ -241,8 +275,49 @@ async def publish_to_linkedin(
                 detail="LinkedIn account is not connected via OAuth. Please connect your account in Settings first."
             )
             
-        access_token = decrypt_token(conn.encrypted_access_token)
+        # Check token expiration
+        if conn.token_expires_at:
+            exp = conn.token_expires_at if conn.token_expires_at.tzinfo else conn.token_expires_at.replace(tzinfo=timezone.utc)
+            if exp < datetime.now(timezone.utc):
+                conn.is_active = False
+                session.status = "OAUTH_REQUIRED"
+                await db.commit()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="LinkedIn authorization has expired or is invalid. Please reconnect LinkedIn."
+                )
+                
+        # Check permission scope
+        if "w_member_social" not in (conn.scopes or ""):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Your LinkedIn connection lacks the required 'w_member_social' permission. Please reconnect LinkedIn and grant posting permissions."
+            )
+            
         member_urn = conn.linkedin_member_urn or f"urn:li:person:{conn.linkedin_member_id}"
+        redacted_urn = f"{member_urn[:18]}...{member_urn[-4:]}" if len(member_urn) > 22 else "urn:li:person:***"
+        
+        # Token age calculation
+        token_age = "recent"
+        if conn.connected_at:
+            c_at = conn.connected_at if conn.connected_at.tzinfo else conn.connected_at.replace(tzinfo=timezone.utc)
+            diff = datetime.now(timezone.utc) - c_at
+            mins = int(diff.total_seconds() // 60)
+            token_age = f"{mins // 60}h {mins % 60}m"
+            
+        # Safe Diagnostics Logging (ZERO secrets)
+        logger.info(
+            f"[LinkedIn Token Diagnostics]\n"
+            f"Provider: official\n"
+            f"OAuth connected: {conn.is_active}\n"
+            f"Token present: {bool(conn.encrypted_access_token)}\n"
+            f"Token expired: False\n"
+            f"Token age: {token_age}\n"
+            f"Scopes: {conn.scopes}\n"
+            f"Authenticated member: {redacted_urn}"
+        )
+        
+        access_token = decrypt_token(conn.encrypted_access_token)
         
         session.status = "PUBLISHING"
         await db.commit()
@@ -269,7 +344,15 @@ async def publish_to_linkedin(
             await db.commit()
             return result
         except Exception as e:
-            session.status = "PUBLISH_FAILED"
+            err_msg = str(e)
+            # If token is rejected or invalid, mark connection inactive to require reconnect
+            if "401" in err_msg or "INVALID_ACCESS_TOKEN" in err_msg or "expired" in err_msg.lower():
+                conn.is_active = False
+                session.status = "OAUTH_REQUIRED"
+                err_msg = "LinkedIn authorization has expired or is invalid. Please reconnect LinkedIn."
+            else:
+                session.status = "PUBLISH_FAILED"
+                
             pub_record = PublishingHistory(
                 session_id=session.id,
                 user_id=current_user.id,
@@ -277,15 +360,15 @@ async def publish_to_linkedin(
                 status="PUBLISH_FAILED",
                 provider="official",
                 is_mock=False,
-                error_message=str(e),
+                error_message=err_msg,
                 published_at=datetime.now(timezone.utc)
             )
             db.add(pub_record)
             await db.commit()
-            logger.error(f"Live LinkedIn publishing error: {e}")
+            logger.error(f"Live LinkedIn publishing error: {err_msg}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e)
+                detail=err_msg
             )
             
     # Mock / Simulation Provider Flow

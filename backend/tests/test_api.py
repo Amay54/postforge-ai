@@ -64,7 +64,6 @@ async def test_publish_guardrail_unapproved(async_client, auth_headers, db_sessi
         "confirmation": True
     }
     resp = await async_client.post("/api/linkedin/publish", json=pub_payload, headers=auth_headers)
-    # MUST reject publishing if human_approved is False
     assert resp.status_code == 400
     assert "approval" in resp.json()["detail"].lower()
 
@@ -95,7 +94,6 @@ async def test_publish_mock_mode_success(async_client, auth_headers, db_session,
 
 @pytest.mark.asyncio
 async def test_text_only_post_publish(async_client, auth_headers, db_session, test_user):
-    """Verify plain text post approval and successful publication via mock provider."""
     session = ContentSession(
         user_id=test_user.id,
         topic="Text Only Post Testing",
@@ -119,7 +117,6 @@ async def test_text_only_post_publish(async_client, auth_headers, db_session, te
 
 @pytest.mark.asyncio
 async def test_text_only_post_rejects_base64_and_images(async_client, auth_headers, db_session, test_user):
-    """Verify that image payloads or base64 strings are rejected with HTTP 400."""
     session = ContentSession(
         user_id=test_user.id,
         topic="Image Post Rejection",
@@ -141,8 +138,6 @@ async def test_text_only_post_rejects_base64_and_images(async_client, auth_heade
 
 @pytest.mark.asyncio
 async def test_new_prompt_is_not_replaced_by_previous_prompt(async_client, auth_headers):
-    """Verify two sequential distinct prompts generate completely unique, non-cached posts."""
-    # Prompt A: RAG
     payload_a = {
         "topic": "Biggest challenges of deploying RAG systems in production",
         "target_audience": "AI/ML Engineers",
@@ -156,7 +151,6 @@ async def test_new_prompt_is_not_replaced_by_previous_prompt(async_client, auth_
     data_a = resp_a.json()
     post_a = data_a["final_post_content"]
 
-    # Prompt B: Python recursion
     payload_b = {
         "topic": "Why Python recursion is difficult for beginners and how to master it",
         "target_audience": "Junior Developers",
@@ -170,10 +164,49 @@ async def test_new_prompt_is_not_replaced_by_previous_prompt(async_client, auth_
     data_b = resp_b.json()
     post_b = data_b["final_post_content"]
 
-    # Both posts must be materially distinct and reflect their respective topics
     assert post_a != post_b
     assert "RAG" in post_a
     assert "recursion" in post_b.lower() or "stack" in post_b.lower()
+
+@pytest.mark.asyncio
+async def test_no_prompt_leakage(async_client, auth_headers):
+    """Verify that user instructions and meta-phrases are not leaked into the generated post text."""
+    prompt = "Create a LinkedIn post explaining why AI projects fail when moving from prototype to production. Target audience: AI engineers. Desired tone: professional."
+    payload = {
+        "topic": prompt,
+        "target_audience": "AI Engineers",
+        "tone": "professional",
+        "content_objective": "Thought Leadership",
+        "quality_threshold": 80,
+        "max_iterations": 2
+    }
+    resp = await async_client.post("/api/posts/generate", json=payload, headers=auth_headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    final_post = data["final_post_content"]
+
+    # Forbidden prompt leakage phrases
+    forbidden_phrases = [
+        "create a linkedin post",
+        "create linkedin post",
+        "write a linkedin post",
+        "write linkedin post",
+        "target audience",
+        "desired tone",
+        "quality threshold",
+        "max iterations",
+        "the user asked",
+        "your prompt",
+        "as requested",
+        "in this post, i will",
+        "explaining why"
+    ]
+    for phrase in forbidden_phrases:
+        assert phrase not in final_post.lower(), f"Prompt leakage phrase '{phrase}' found in final post:\n{final_post}"
+
+    # Verify high quality natural hook and domain content
+    assert "80%" in final_post or "prototype" in final_post.lower()
+    assert "#MLOps" in final_post or "#ArtificialIntelligence" in final_post or "#MachineLearning" in final_post
 
 @pytest.mark.asyncio
 async def test_linkedin_status_mock(async_client, auth_headers):
@@ -197,7 +230,6 @@ async def test_publish_official_mode_requires_oauth(async_client, auth_headers, 
         await db_session.commit()
         await db_session.refresh(session)
 
-        # Attempt publish without official LinkedInConnection in DB
         pub_payload = {
             "session_id": session.id,
             "confirmation": True

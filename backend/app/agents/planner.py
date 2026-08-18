@@ -1,14 +1,16 @@
 from typing import Dict, Any
 from app.agents.base import BaseAgent
 from app.schemas.agent_schemas import PlannerOutput, AgentExecutionResult
+from app.llm.mock import clean_subject_line
 
 PLANNER_SYSTEM_PROMPT = """You are an elite LinkedIn Editorial Director and Viral Content Strategist.
-Given the user objective, target audience, and desired tone:
+Given the core topic, target audience, and desired tone:
 1. Deconstruct the core hook angle.
 2. Outline key narrative beats for LinkedIn engagement.
 3. Identify target audience pain points.
 4. Specify whether external domain research/citations are required.
 5. Provide actionable direction for the Generator.
+6. ANTI-LEAKAGE RULE: Work on the semantic topic. Do not include meta-instruction phrases like "Create a LinkedIn post" in the plan.
 
 Return valid JSON adhering to PlannerOutput schema."""
 
@@ -17,13 +19,14 @@ class PlannerAgent(BaseAgent):
         super().__init__(llm, "Planner")
 
     async def run(self, input_data: Dict[str, Any]) -> AgentExecutionResult:
-        topic = input_data.get("topic", "")
+        raw_topic = input_data.get("topic", "")
+        cleaned_topic = clean_subject_line(raw_topic)
         tone = input_data.get("tone", "thought-provoking")
         audience = input_data.get("target_audience", "Tech Leaders & Engineers")
         objective = input_data.get("content_objective", "Thought Leadership")
         
         user_prompt = f"""Content Objective: {objective}
-Topic: {topic}
+Core Topic: {cleaned_topic}
 Target Audience: {audience}
 Desired Tone: {tone}
 

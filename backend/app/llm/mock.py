@@ -14,21 +14,121 @@ from app.schemas.agent_schemas import (
 
 T = TypeVar("T", bound=BaseModel)
 
+PROMPT_LEAKAGE_PATTERNS = [
+    r"create\s+(?:a\s+)?linkedin\s+post",
+    r"write\s+(?:a\s+)?linkedin\s+post",
+    r"generate\s+(?:a\s+)?linkedin\s+post",
+    r"target\s+audience",
+    r"desired\s+tone",
+    r"quality\s+threshold",
+    r"max\s+iterations",
+    r"the\s+user\s+asked",
+    r"your\s+prompt",
+    r"as\s+requested",
+    r"here\s+is\s+(?:a|the)\s+post",
+    r"in\s+this\s+post\s+i\s+will"
+]
+
+def check_prompt_leakage(text: str) -> List[str]:
+    """Returns list of leaked prompt phrases found in text."""
+    found = []
+    text_lower = text.lower()
+    for pat in PROMPT_LEAKAGE_PATTERNS:
+        match = re.search(pat, text_lower)
+        if match:
+            found.append(match.group(0))
+    return found
+
+def clean_subject_line(raw_text: str) -> str:
+    """Strips meta-instructions from user input to get the true semantic topic."""
+    text = raw_text.strip()
+    topic_match = re.search(r'(?:Topic|topic):\s*([^\n]+)', text)
+    if topic_match:
+        text = topic_match.group(1).strip()
+    else:
+        text = text.split('\n')[0].strip()
+
+    prefix_patterns = [
+        r'^(?:please\s+)?(?:create|write|generate|craft|make|draft|produce)\s+(?:a\s+)?(?:high-converting\s+|viral\s+|compelling\s+|professional\s+)?(?:linkedin\s+)?(?:post|article|update|content|thought\s+leadership)?\s*(?:about|on|explaining|discussing|breaking\s+down|covering|regarding|detailing|for)?\s*',
+        r'^(?:explain|describe|break\s+down|analyze|discuss|give\s+me|show)\s+(?:why|how|what|the)?\s*',
+        r'^(?:why|how|what)\s+'
+    ]
+    for p in prefix_patterns:
+        text = re.sub(p, '', text, flags=re.IGNORECASE).strip()
+        
+    text = re.sub(r'(?:Target audience|Desired tone|Content objective|Keep it concise|Use a professional).*', '', text, flags=re.IGNORECASE).strip()
+    text = re.sub(r'[\.\?!,;:]+$', '', text).strip()
+    return text if len(text) > 3 else raw_text.strip()
+
 def _extract_topic_and_keywords(prompt_text: str) -> dict:
     """Extract topic, audience, and key concepts from the input prompt string."""
-    # Look for explicit Topic: line first
-    topic_match = re.search(r'(?:Topic|topic):\s*(.+)', prompt_text)
-    if topic_match:
-        target_subject = topic_match.group(1).strip()
-    else:
-        # Fallback to first line or whole prompt
-        target_subject = prompt_text.split('\n')[0].strip()
-
-    subject_lower = target_subject.lower()
-    full_lower = prompt_text.lower()
+    cleaned_topic = clean_subject_line(prompt_text)
+    subject_lower = cleaned_topic.lower()
     
-    # Check for Python / Recursion
-    if "recursion" in subject_lower or ("python" in subject_lower and "rag" not in subject_lower):
+    # 1. AI Prototype to Production Failures
+    if ("prototype" in subject_lower and "production" in subject_lower) or ("fail" in subject_lower and "ai" in subject_lower):
+        return {
+            "topic": "Why Enterprise AI Projects Fail Moving from Prototype to Production",
+            "hook": "80% of enterprise AI prototypes never survive the transition to production.",
+            "hook_iter2": "Most AI prototypes look brilliant in Jupyter notebooks. In production, they fail within weeks. Here is the actual reason why:",
+            "pains": [
+                "Silent data drift and schema mismatch under live production loads",
+                "Unpredictable latency spikes and exploding inference API costs",
+                "Lack of automated grounding gates and continuous evaluation pipelines"
+            ],
+            "beats": [
+                "The fundamental gap: benchmark accuracy vs production resilience",
+                "3 critical failure modes: Data distribution drift, Cost/latency compound curves, and Missing feedback telemetry",
+                "Actionable architectural blueprint: MLOps grounding, automated regression gates, and canary rollouts",
+                "Discussion prompt for engineering leaders"
+            ],
+            "body_iter1": """80% of enterprise AI prototypes never survive the transition to production.
+
+The reason isn't the underlying model ? it's the operational scaffolding around it.
+
+When transitioning AI from proof-of-concept to production, teams hit 3 major failure points:
+
+1. Silent Data Drift: Real user prompts look nothing like synthetic test datasets. Unmonitored models degrade quietly without throwing errors.
+2. Latency & Token Economics: Multi-step LLM chains that work in demos become cost-prohibitive under concurrent enterprise traffic.
+3. Lack of Automated Evaluation: Without continuous quality guardrails, hallucination regressions slip into customer workflows undetected.
+
+How high-performing engineering teams bridge the gap:
+? Build continuous evaluation gates before deploying model updates.
+? Decouple monolithic prompt chains into discrete, cached micro-services.
+? Log end-to-end token latency telemetry alongside standard system metrics.
+
+What is the biggest operational hurdle your team has faced when moving AI into production?
+
+#ArtificialIntelligence #MachineLearning #MLOps #SystemDesign #SoftwareEngineering #TechLeadership""",
+            "body_iter2": """Most AI prototypes look brilliant in Jupyter notebooks. In production, they fail within weeks. Here is the actual reason why:
+
+A demo only needs to work once for an executive sponsor. Production requires working reliably 100,000 times a day under noisy real-world conditions.
+
+The 3 Core Production Killers and How to Solve Them:
+
+1. Data Drift & Schema Fragility
+? The Flaw: Unstructured user inputs violate assumptions baked into prompt templates.
+? The Fix: Implement schema validation and deterministic input sanitize filters at the API boundary.
+
+2. Cost & Latency Compounding
+? The Flaw: Synchronous multi-agent chains cause user wait times to exceed 8 seconds.
+? The Fix: Cache intermediate embeddings, stream token outputs, and use tiered model routing (small models for classification, large models for synthesis).
+
+3. Missing Quality Guardrails
+? The Flaw: Relying on manual ad-hoc testing instead of automated evaluation datasets.
+? The Fix: Enforce automated rubric scoring before any generation reaches the user.
+
+Production takeaway: Model capability is a commodity. Operational reliability is your competitive advantage.
+
+What has been your team's single most effective practice for keeping AI reliable in production?
+
+#ArtificialIntelligence #MachineLearning #MLOps #SystemDesign #SoftwareEngineering #TechLeadership""",
+            "hashtags": ["#ArtificialIntelligence", "#MachineLearning", "#MLOps", "#SystemDesign", "#SoftwareEngineering", "#TechLeadership"],
+            "cta": "What has been your team's single most effective practice for keeping AI reliable in production?"
+        }
+
+    # 2. Python / Recursion
+    elif "recursion" in subject_lower or ("python" in subject_lower and "rag" not in subject_lower and "ai" not in subject_lower):
         return {
             "topic": "Mastering Recursion in Python for Beginners",
             "hook": "Recursion isn't difficult ? the way it's usually taught is.",
@@ -84,7 +184,7 @@ Which concept was harder for you when starting out: recursion or pointer memory?
             "cta": "Which concept was harder for you when starting out: recursion or pointer memory?"
         }
 
-    # Check for RAG / Retrieval
+    # 3. RAG / Retrieval
     elif "rag" in subject_lower or "retrieval" in subject_lower or "vector" in subject_lower:
         return {
             "topic": "Deploying RAG Systems in Production",
@@ -144,9 +244,10 @@ What has been your team's biggest operational breakthrough in scaling RAG system
             "cta": "What has been your team's biggest operational breakthrough in scaling RAG systems?"
         }
 
-    # Generic Custom Topic Synthesis
+    # 4. Generic Clean Topic
     else:
-        words = [w.capitalize() for w in re.findall(r'\b[A-Za-z]{3,}\b', target_subject)[:4]]
+        # Extract meaningful domain title
+        words = [w.capitalize() for w in re.findall(r'\b[A-Za-z]{3,}\b', cleaned_topic)[:4]]
         topic_title = " ".join(words) if words else "Engineering Excellence"
         
         return {
@@ -155,7 +256,7 @@ What has been your team's biggest operational breakthrough in scaling RAG system
             "hook_iter2": f"If you want to master {topic_title.lower()}, stop optimizing for surface metrics and focus on fundamentals:",
             "pains": [
                 f"Lack of clear framework when executing {topic_title.lower()}",
-                "Overcomplicating architectures before finding product-market fit",
+                "Overcomplicating architectures before establishing reliable feedback loops",
                 "Communication silos between engineering and technical leadership"
             ],
             "beats": [
@@ -195,7 +296,7 @@ Automated validation + explicit human oversight ensures high standards without s
 What is the single most valuable lesson you have learned about {topic_title.lower()}?
 
 #TechLeadership #SoftwareEngineering #SystemDesign #Innovation #ProductDevelopment""",
-            "hashtags": ["#TechLeadership", "#SoftwareEngineering", "#SystemDesign", "#Innovation", "#ProductDevelopment"],
+            "hashtags": [f"#{w}" for w in words] + ["#TechLeadership", "#SoftwareEngineering"],
             "cta": f"What is the single most valuable lesson you have learned about {topic_title.lower()}?"
         }
 
@@ -241,6 +342,11 @@ class MockLLMService(BaseLLMService):
             else:
                 post_content = topic_info["body_iter1"]
                 hook_text = topic_info["hook"]
+                
+            # Quality Gate: Ensure ZERO prompt leakage exists in output
+            leaks = check_prompt_leakage(post_content)
+            for leak in leaks:
+                post_content = re.sub(re.escape(leak), "", post_content, flags=re.IGNORECASE)
             
             content = GeneratorOutput(
                 post_text=post_content,
@@ -253,7 +359,31 @@ class MockLLMService(BaseLLMService):
             
         # 3. Reviewer Output
         elif response_schema == ReviewerOutput or "critique strictly" in prompt.lower() or "candidate linkedin post to evaluate" in prompt.lower():
-            if is_iter_1 or not has_feedback:
+            # Check for prompt leakage in the evaluated post
+            leaks = check_prompt_leakage(prompt)
+            if leaks:
+                overall = 55
+                approved = False
+                issues = [f"Critical Prompt Leakage detected: '{', '.join(leaks)}'."]
+                feedback = "Draft contains raw prompt leakage meta-instructions. Strip meta-phrases and write in an authentic executive first-person voice."
+                instructions = [
+                    "Remove all meta-instruction phrases such as 'create a linkedin post' or 'target audience'.",
+                    "Synthesize the narrative naturally around the core topic.",
+                    "Strengthen the opening hook to be direct and insight-driven."
+                ]
+                scores = ReviewScores(
+                    hook_impact=50,
+                    storytelling=55,
+                    professional_depth=60,
+                    clarity=55,
+                    engagement_potential=50,
+                    originality=50,
+                    structure=60,
+                    actionability=55,
+                    emotional_resonance=50,
+                    authenticity=50
+                )
+            elif is_iter_1 or not has_feedback:
                 overall = 78
                 approved = False
                 issues = [
